@@ -1,0 +1,16 @@
+*.egg-info
+*.egg
+*.pyc
+.vscode
+__pycache__/
+build/
+
+test_users.txt
+
+docker-compose.yml
+
+config/games.conf
+config/global.conf
+
+tests/test_trophies/*/
+tests/custom_config.ini
