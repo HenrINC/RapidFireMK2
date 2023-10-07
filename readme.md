@@ -10,7 +10,7 @@ To build the Docker image, run the following command in the root directory of th
 docker build -t ps3-trophy-toolset .
 ```
 
-his will build the Docker image and tag it as `ps3-trophy-toolset`.
+This will build the Docker image and tag it as `ps3-trophy-toolset`.
 
 ## Running the Image
 
