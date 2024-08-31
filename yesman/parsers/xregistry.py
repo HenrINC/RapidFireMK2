@@ -1,6 +1,6 @@
 import io
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Optional
 
 from pydantic import BaseModel, ConfigDict, validator
 
@@ -80,6 +80,7 @@ class XRegValue(BaseModel):
     value_type: int
     value: bytes
     terminator: bytes
+    offset: Optional[int] = None
 
     @classmethod
     def from_bytes(cls, data: bytes) -> "XRegValue":
@@ -153,8 +154,11 @@ class XRegistry:
         key_part = buffer.read(0xFFF0)
         value_part = buffer.read(0x10000)
         entries = []
+        value_offset = 0
         while True:
             value = XRegValue.from_bytes(value_part)
+            value.offset = value_offset
+            value_offset += len(value)
             value_part = value_part[len(value) :]
             key = XRegKey.from_bytes(key_part[value.key_offset :])
             if key.key == "":
@@ -164,16 +168,16 @@ class XRegistry:
         return cls(header=header, entries=entries)
 
     @classmethod
-    def from_file(cls, file: Path) -> None:
+    def from_file(cls, file: Path) -> "XRegistry":
         with file.open("rb") as f:
             return cls.from_buffer(f)
 
     @classmethod
-    def from_bytes(cls, data: bytes) -> None:
+    def from_bytes(cls, data: bytes) -> "XRegistry":
         with io.BytesIO(data) as f:
             return cls.from_buffer(f)
 
-    def __getitem__(self, key: str | XRegKey) -> XRegEntry:
+    def __getitem__(self, key: str | XRegKey) -> XRegValue:
         if isinstance(key, str):
             return self.get_entry(key).value
         elif isinstance(key, XRegKey):

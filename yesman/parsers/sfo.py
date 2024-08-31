@@ -260,6 +260,36 @@ class SFO:
             content[value_start : value_start + param.actual_length] = param.value
         return header_bytes + index_table_bytes + bytes(content)
 
+    def to_dict(self) -> dict:
+        return {
+            "header": {
+                "magic": self.header.magic,
+                "version": self.header.version,
+                "key_table_offset": self.header.key_table_offset,
+                "data_table_offset": self.header.data_table_offset,
+                "num_entries": self.header.num_entries
+            },
+            "index_table": [
+                {
+                    "key_offset": entry.key_offset,
+                    "param_format": entry.param_format,
+                    "param_length": entry.param_length,
+                    "param_max_length": entry.param_max_length,
+                    "data_offset": entry.data_offset
+                } for entry in self.index_table.entries
+            ],
+            "params": [
+                {
+                    "key": param.key,
+                    "value": param.value.decode('utf-8', errors='ignore') if isinstance(param.value, bytes) else param.value,
+                    "format": param.format,
+                    "length": param.length,
+                    "max_length": param.max_length,
+                    "actual_length": param.actual_length
+                } for param in self.params
+            ]
+        }
+
     def write_to_buffer(self, buffer: io.BytesIO) -> None:
         buffer.write(bytes(self))
 

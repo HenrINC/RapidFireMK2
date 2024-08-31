@@ -4,6 +4,7 @@
 .vscode
 __pycache__/
 build/
+dumps/
 
 test_users.txt
 
@@ -11,6 +12,7 @@ docker-compose.yml
 
 config/games.conf
 config/global.conf
+config/ps3.ini
 
 tests/test_trophies/*/
 tests/custom_config.ini

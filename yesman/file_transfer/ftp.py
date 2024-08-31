@@ -2,10 +2,12 @@ from pathlib import Path
 
 import aioftp
 
-from ps3_lib import PS3Path
+from ..structs import PS3Path
 
 from .common import PS3AbstractFileTransfer
+from .factory import PS3FileTransferFactory
 
+@PS3FileTransferFactory.register("FTP")
 class PS3FTPFileTransfer(PS3AbstractFileTransfer):
     def __init__(self, ps3_host, ps3_port = 21, username = None, password = None) -> None:
         super().__init__(ps3_host, ps3_port)

@@ -1,6 +1,8 @@
 import enum
 from pathlib import Path
 
+from pydantic import BaseModel, ConfigDict, validator
+
 
 class PS3Path:
     def __init__(self, path: Path | None) -> None:
@@ -16,7 +18,7 @@ class PS3Path:
 
     def __truediv__(self, other: str) -> str:
         return PS3Path(self._path / other)
-    
+
     def is_dir(self) -> bool:
         """
         TODO: Find a better way
@@ -32,7 +34,8 @@ class PS3Path:
         return self._path.name
 
     def resolve(self) -> str:
-        return "/"+str(self)
+        return "/" + str(self)
+
 
 class PS3_INPUT(enum.Enum):
     up = "up"
@@ -78,6 +81,13 @@ class PS3_XMB_COLS(enum.Enum):
     friend = "friend"
 
 
+class PS3_REBOOT_MODES(enum.Enum):
+    hard = "hard"
+    soft = "soft"
+    quick = "quick"
+    vsh = "vsh"
+
+
 class PS3_LED_COLORS(enum.Enum):
     red = 0
     green = 1
@@ -89,7 +99,6 @@ class PS3_LED_MODES(enum.Enum):
     on = 1
     blink_fast = 2
     blink_slow = 3
-    
 
 
 class PS3_BUZZER_SOUNDS(enum.Enum):
@@ -154,7 +163,26 @@ class PS3_CFW_INFOS(enum.Enum):
     user_home_directory = "@info23"
     webman_mod_version = "@info24"
 
+
 class PS3_SYSCALL_LEVELS(enum.Enum):
     fully_enabled = 0
     fake_disabled = 3
     fully_disabled = 4
+
+
+class PS3UserID(int):
+    def __str__(self) -> str:
+        return f"{self:08x}"
+
+
+class PS3UserModel(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    id: PS3UserID | int
+    name: str
+
+    @validator("id")
+    def validate_id(cls, v):
+        if not isinstance(v, PS3UserID):
+            return PS3UserID(v)
+        return v

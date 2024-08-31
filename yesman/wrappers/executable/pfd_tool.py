@@ -10,14 +10,14 @@ class PFDTool:
         self.binary_path = binary_path
         self.working_directory = working_directory
     
-    async def _run(self, command:str, pfd_folder, pfd_filename, game = None, partial = False):
+    async def _run(self, command:str, folder, filename = None, game = None, partial = False):
         cmd = [
             self.binary_path,
             *(["-g", game] if game else []),
             *(["-p"] if partial else []),
             command,
-            pfd_folder,
-            pfd_filename,
+            folder,
+            *([filename] if filename else []),
         ]
         proc = await asyncio.create_subprocess_exec(
             *cmd,
@@ -29,12 +29,12 @@ class PFDTool:
         stdout, stderr = await proc.communicate()
         return stdout.decode(), stderr.decode()
 
-    async def decrypt(self, pfd_folder, pfd_filename, game = None, partial = False):
-        return await self._run("-d", pfd_folder, pfd_filename, game, partial)
+    async def decrypt(self, folder, filename = None, game = None, partial = False):
+        return await self._run("-d", folder, filename, game, partial)
 
 
-    async def update(self, pfd_folder, pfd_filename, game = None, partial = False):
-        return await self._run("-u", pfd_folder, pfd_filename, game, partial)
+    async def update(self, folder, filename = None, game = None, partial = False):
+        return await self._run("-u", folder, filename, game, partial)
     
-    async def encrypt(self, pfd_folder, pfd_filename, game = None, partial = False):
-        return await self._run("-e", pfd_folder, pfd_filename, game, partial)
+    async def encrypt(self, folder, filename = None, game = None, partial = False):
+        return await self._run("-e", folder, filename, game, partial)

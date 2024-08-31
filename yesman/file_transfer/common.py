@@ -1,7 +1,7 @@
 from pathlib import Path
 from abc import abstractmethod, ABC
 
-from ps3_lib import PS3Path
+from ..structs import PS3Path
 
 class PS3AbstractFileTransfer(ABC):
     def __init__(self, ps3_host, ps3_port) -> None:

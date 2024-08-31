@@ -3,14 +3,19 @@ from setuptools import setup, find_packages
 setup(
     name='YesMan-PS3',
     version='0.1',
-    packages=find_packages(),
+    packages=[
+        'yesman',
+        'yesman.parsers',
+        "yesman.parsers.xmb",
+        'yesman.file_transfer',
+        'yesman.wrappers',
+    ],
     install_requires=[
         "fire",
         "numpy",
         "aioftp",
         "aiohttp",
-        "fastapi",
-        "uvicorn",
+        "aiofiles",
         "pydantic",
         "requests",
         "opencv-python",
@@ -21,7 +26,7 @@ setup(
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
         "Intended Audience :: Developers",
-        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.11",
         "Natural Language :: English",
         "Operating System :: Unix" #Intended for debian bookworm slim docker image
     ],

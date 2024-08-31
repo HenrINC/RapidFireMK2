@@ -1,11 +1,17 @@
 import asyncio
-
+from pathlib import Path
 from typing import TYPE_CHECKING
 from collections import OrderedDict
+from configparser import ConfigParser
 
-from . import commands
-from .user import User
-from .xmb.item_factory import XMBFactory
+from scapy.all import srp, Ether, ARP
+from wakeonlan import send_magic_packet
+
+from yesman.parsers.xregistry import XRegEntry, XRegKey
+
+from .wrappers import commands
+
+from .parsers.xmb.item_factory import XMBFactory
 
 from .structs import (
     PS3_INPUT,
@@ -17,15 +23,30 @@ from .structs import (
     PS3Path,
     PS3_CFW_INFOS,
     PS3_SYSCALL_LEVELS,
+    PS3UserModel,
 )
 
 if TYPE_CHECKING:
-    from .xmb.xmb import XMB
+    from .parsers.xmb.xmb import XMB
 
 
 class PS3:
-    def __init__(self, url) -> None:
-        self.url = url.rstrip("/")
+    def __init__(
+        self, host: str, port: int = 80, config_path=Path("./config/ps3.ini")
+    ) -> None:
+        self.host = host
+        self.port = port
+        self.config_path = config_path
+        self.load_config()
+
+    def load_config(self):
+        config = ConfigParser()
+        config.read(self.config_path)
+        self.config = config
+
+    def save_config(self):
+        with open(self.config_path, "w") as f:
+            self.config.write(f)
 
     def set_led_color(
         self, color: PS3_LED_COLORS, mode: PS3_LED_MODES, clean: bool = True
@@ -75,10 +96,6 @@ class PS3:
         self.go_to_category(category)
         self.go_to_item(item, index=item_index)
 
-    def mount_game(self, game_id: str):
-        game_path = PS3Path("dev_hdd0") / "game" / game_id / "USRDIR" / "EBOOT.BIN"
-        commands.mount(self.url, str(game_path))
-
     def press_key(self, key: PS3_INPUT):
         commands.pad(self.url, key.value)
 
@@ -94,6 +111,13 @@ class PS3:
 
     def get_uptime(self):
         return commands.uptime(self.url)
+
+    def update_registry_entry(self, key: XRegEntry | XRegKey | str, value: bytes):
+        if isinstance(key, XRegEntry):
+            key = key.key
+        if isinstance(key, XRegKey):
+            key = key.key
+        return commands.update_registry(self.url, key, value)
 
     async def await_restart(self, current_uptime=None):
         uptime = self.get_uptime() if current_uptime is None else current_uptime
@@ -114,7 +138,7 @@ class PS3:
                 pass
             await asyncio.sleep(1)
 
-    async def await_uptime(self, target_uptime=5):
+    async def await_uptime(self, target_uptime=10):
         while True:
             try:
                 if self.get_uptime() >= target_uptime:
@@ -161,9 +185,18 @@ class PS3:
     async def rebuild_database(self):
         commands.rebuild_database(self.url)
         await asyncio.sleep(5)
-        await self.await_uptime(10)
+        await self.await_uptime(11)
         self.press_key(PS3_INPUT.accept)
-        await self.await_restart(20)
+        await self.await_restart(10)
+
+    @property
+    def is_turned_on(self):
+        try:
+            self.get_uptime()
+        except:
+            return False
+        else:
+            return True
 
     @property
     def is_logged_in(self):
@@ -177,6 +210,42 @@ class PS3:
     @property
     def xmb(self) -> "XMB":
         return self.get_xmb()
+
+    @property
+    def url(self):
+        return f"http://{self.host}:{self.port}"
+
+    @property
+    def mac_address(self):
+        if "ARP" in self.config and self.host in self.config["ARP"]:
+            return self.config["ARP"][self.host]
+
+        if not self.is_turned_on:
+            raise RuntimeError(
+                "PS3 is turned off, turn on the PS3 at least once to cache the mac address"
+            )
+        response, unanswered = srp(
+            Ether(dst="ff:ff:ff:ff:ff:ff") / ARP(pdst=self.host),
+            timeout=2,
+            retry=10,
+            verbose=0,
+        )
+        for s, r in response:
+            mac_address = r[Ether].src
+            self.config["ARP"][self.host] = mac_address
+            self.save_config()
+            return mac_address
+        raise RuntimeError("Could not get mac address")
+
+    @property
+    def users(self):
+        for user in self.listdir(PS3Path("dev_hdd0/home")):
+            username = self.get_file(user / "localusername").decode("utf-8").strip()
+            user_id = int(user.name)
+            yield PS3UserModel(id=user_id, name=username)
+
+    def save_mac_address(self):
+        _ = self.mac_address
 
     def get_xmb(self) -> "XMB":
         xmb_root_path = PS3Path("dev_flash/vsh/resource/explore/xmb/")
@@ -211,9 +280,8 @@ class PS3:
         for file in commands.listdir(self.url, str(path)):
             yield path / file
 
-    @property
-    def users(self):
-        for user in self.listdir(PS3Path("dev_hdd0/home")):
-            username = self.get_file(user / "localusername").decode("utf-8").strip()
-            user_id = int(user.name)
-            yield User(id=user_id, name=username)
+    def wakeup(self):
+        """
+        Sends a wake-on-lan packet to the PS3
+        """
+        send_magic_packet(self.mac_address, ip_address=self.host)
